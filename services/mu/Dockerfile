@@ -4,7 +4,7 @@ ARG MU_VERSION=main
 RUN apk add git
 
 WORKDIR /download
-RUN git clone --branch=${MU_VERSION} --depth=1 https://github.com/permaweb/ao.git
+RUN git clone --branch=${MU_VERSION} --depth=1 https://github.com/atticusofsparta/ao.git
 
 FROM node:alpine
 COPY --from=builder /download/ao/servers/mu /usr/app

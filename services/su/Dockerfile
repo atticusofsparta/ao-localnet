@@ -4,7 +4,7 @@ ARG SU_VERSION=main
 RUN apk add git
 
 WORKDIR /download
-RUN git clone --branch=${SU_VERSION} --depth=1 https://github.com/permaweb/ao.git
+RUN git clone --branch=${SU_VERSION} --depth=1 https://github.com/atticusofsparta/ao.git
 
 FROM rust AS builder
 WORKDIR /build
