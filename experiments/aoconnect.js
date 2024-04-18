@@ -1,11 +1,7 @@
 import { connect, createDataItemSigner } from "@permaweb/aoconnect";
-import pkg from "warp-arbundles";
 import * as fs from "fs"
 import { arweave } from "./constants.js";
 import path from "path"
-
-const { ArweaveSigner, createData } = pkg;
-
 
 async function main () {
 
@@ -14,27 +10,32 @@ async function main () {
 
     console.log('deploying module')
     
-    const jwk = await JSON.parse(fs.readFileSync(path.join(path.resolve(), "/wallets/aos-wallet.json")));
-    const signer = new ArweaveSigner(jwk);
-    const moduleData = await fs.readFileSync(path.join(path.resolve(), "experiments/module.wasm"));
+    const jwk = await JSON.parse(fs.readFileSync(path.join(path.resolve(), "/wallets/aos-module-publisher-wallet.json")));
+    const moduleData = fs.readFileSync(path.join(path.resolve(), "experiments/module.wasm"));
 
-    const dataItem = await createData(moduleData, signer)
-    await dataItem.sign(signer);
-    console.log(`deploying module ${await dataItem.id} to bundler`)
-    const body = await dataItem.getRaw()
-    fetch("http://localhost:4007", {
-        method: "POST",
-        body,
-        headers: {
-            // wasm content type
-            "Content-Type": "application/wasm"
-        }
-    })
-
-    const moduleId = await dataItem.id;
-
+    const tx = await arweave.createTransaction({
+        data: moduleData
+      })
+      
+    tx.addTag('Memory-Limit',    '500-mb'                   )
+    tx.addTag('Compute-Limit',   '9000000000000'            )
+    tx.addTag('Data-Protocol',   'ao'                       )
+    tx.addTag('Type',            'Module'                   )
+    tx.addTag('Module-Format',   'wasm32-unknown-emscripten')
+    tx.addTag('Input-Encoding',  'JSON-1'                   )
+    tx.addTag('Output-Encoding', 'JSON-1'                   )
+    tx.addTag('Variant',         'ao.LN.1'                  )
+    tx.addTag('Content-Type',    'application/wasm'         )
     
-    const { spawn } = await connect({
+    await arweave.transactions.sign(tx, jwk)
+    
+    console.log(`deploying module ${tx.id} to arlocal`)
+
+    await arweave.transactions.post(tx)
+
+    const moduleId = tx.id;
+
+    const { spawn } = connect({
         GATEWAY_URL: "http://localhost:4000",
         GRAPHQL_URL: "http://localhost:4000/graphql",
         MU_URL: "http://localhost:4002",
@@ -45,7 +46,7 @@ async function main () {
     const processId = await spawn({
         scheduler: schedulerWalletAddress,
         module: moduleId,
-        signer: createDataItemSigner(signer)
+        signer: createDataItemSigner(jwk)
     });
 
     console.log(`process spawned with id ${processId}`)
